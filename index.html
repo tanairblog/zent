@@ -1,0 +1,2548 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zent Presenter & Pacer</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #131c2e;
+      --card-border: #1e293b;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --green: #10b981;
+      --green-bg: rgba(16, 185, 129, 0.15);
+      --red: #ef4444;
+      --red-bg: rgba(239, 68, 68, 0.2);
+      --yellow: #f59e0b;
+      --font-scale: 1;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Header Nav */
+    header {
+      background: #0f172a;
+      border-bottom: 1px solid var(--card-border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      color: white;
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      font-weight: 800;
+    }
+
+    .nav-tabs {
+      display: flex;
+      background: #1e293b;
+      padding: 4px;
+      border-radius: 10px;
+      gap: 4px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 8px 16px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background: #1e293b;
+      color: #e2e8f0;
+      border-color: #334155;
+    }
+    .btn-secondary:hover {
+      background: #334155;
+    }
+
+    .btn-success {
+      background: var(--green);
+      color: #fff;
+    }
+
+    .btn-danger {
+      background: var(--red);
+      color: #fff;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      padding: 5px 10px;
+      border-radius: 9999px;
+      font-weight: 600;
+      background: #1e293b;
+      border: 1px solid #334155;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #94a3b8;
+    }
+    .status-dot.active {
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      padding: 20px 24px;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+      min-width: 0;
+    }
+
+    .view-container {
+      display: none;
+      min-width: 0;
+      width: 100%;
+    }
+    .view-container.active {
+      display: block;
+    }
+
+    /* ===================================================
+       PRESENTER VIEW STYLES
+       =================================================== */
+    .presenter-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+      gap: 20px;
+      min-height: calc(100vh - 120px);
+    }
+
+    @media (max-width: 1100px) {
+      .presenter-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    /* Left Column: Prompter + Timing Bar */
+    .prompter-column {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    /* Section Timer Card */
+    .timer-card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      border: 2px solid var(--green);
+      padding: 18px 24px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .timer-card.on-track {
+      border-color: var(--green);
+      box-shadow: 0 0 25px rgba(16, 185, 129, 0.2);
+    }
+
+    .timer-card.overtime {
+      border-color: var(--red);
+      background: #1a1016;
+      box-shadow: 0 0 35px rgba(239, 68, 68, 0.35);
+      animation: pulseAlert 2s infinite ease-in-out;
+    }
+
+    @keyframes pulseAlert {
+      0%, 100% { border-color: var(--red); }
+      50% { border-color: #ff8585; }
+    }
+
+    .timer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .section-badge-info {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .section-badge-pill {
+      background: #1e293b;
+      color: #38bdf8;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 800;
+    }
+
+    .slides-count-pill {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--green);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 800;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .section-title-display {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .timer-main-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-top: 10px;
+    }
+
+    .timer-clock {
+      font-size: 4rem;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -2px;
+      line-height: 1;
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+    }
+
+    .timer-clock.green {
+      color: var(--green);
+    }
+
+    .timer-clock.red {
+      color: var(--red);
+    }
+
+    .timer-status-text {
+      font-size: 1.05rem;
+      font-weight: 700;
+      padding: 5px 14px;
+      border-radius: 9999px;
+    }
+    .timer-status-text.green {
+      background: var(--green-bg);
+      color: var(--green);
+    }
+    .timer-status-text.red {
+      background: var(--red-bg);
+      color: var(--red);
+    }
+
+    .global-pace-badge {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      background: #1e293b;
+      padding: 8px 14px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+
+    .global-pace-val {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    /* Progress Bar */
+    .progress-track {
+      width: 100%;
+      height: 10px;
+      background: #1e293b;
+      border-radius: 9999px;
+      overflow: hidden;
+      margin-top: 14px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--green);
+      transition: width 0.3s ease, background-color 0.3s ease;
+      width: 100%;
+    }
+    .progress-fill.overtime {
+      background: var(--red);
+    }
+
+    /* Active Prompter Display */
+    .prompter-card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      border: 1px solid var(--card-border);
+      padding: 30px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    .prompter-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .cue-indicator {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--primary);
+      background: rgba(59, 130, 246, 0.15);
+      padding: 4px 12px;
+      border-radius: 9999px;
+    }
+
+    .font-ctrls {
+      display: flex;
+      gap: 6px;
+    }
+
+    .font-btn {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    /* Primary Quote Display */
+    .active-quote-box {
+      margin: 10px 0 24px 0;
+      min-height: 160px;
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      max-width: 100%;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    .active-quote-text {
+      font-size: calc(2.2rem * var(--font-scale));
+      font-weight: 700;
+      line-height: 1.35;
+      color: #ffffff;
+      transition: font-size 0.2s;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      max-width: 100%;
+    }
+
+    /* Block Timeline / All Cues on current slide */
+    .block-cues-list {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-top: 16px;
+      border-top: 1px dashed var(--card-border);
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .cue-pill {
+      font-size: 0.95rem;
+      padding: 8px 12px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-muted);
+      background: #0f172a;
+      border: 1px solid transparent;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .cue-pill.done {
+      color: #64748b;
+      text-decoration: line-through;
+    }
+
+    .cue-pill.current {
+      color: #fff;
+      background: rgba(59, 130, 246, 0.15);
+      border-color: rgba(59, 130, 246, 0.4);
+      font-weight: 600;
+    }
+
+    .cue-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #475569;
+      flex-shrink: 0;
+    }
+    .cue-pill.current .cue-dot {
+      background: var(--primary);
+    }
+    .cue-pill.done .cue-dot {
+      background: var(--green);
+    }
+
+    /* Next Preview Box */
+    .next-preview-box {
+      margin-top: 16px;
+      background: #0f172a;
+      border-radius: 10px;
+      padding: 12px 16px;
+      border-left: 4px solid var(--primary);
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
+    }
+
+    .next-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .next-text {
+      font-size: 1rem;
+      color: #cbd5e1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    /* Navigation Controls Bar */
+    .nav-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 12px 20px;
+      border: 1px solid var(--card-border);
+      gap: 12px;
+    }
+
+    .step-buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .big-nav-btn {
+      padding: 12px 24px;
+      font-size: 1rem;
+      font-weight: 700;
+      border-radius: 10px;
+    }
+
+    /* Right Column: Slide Miniatures & Outline */
+    .sidebar-column {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .sidebar-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 16px;
+    }
+
+    .sidebar-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .slide-preview-frame {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      border: 1px solid #334155;
+    }
+
+    .slide-preview-frame canvas {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .slide-preview-placeholder {
+      color: #64748b;
+      font-size: 0.85rem;
+      text-align: center;
+      padding: 10px;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .agenda-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 420px;
+      overflow-y: auto;
+    }
+
+    .agenda-section-group {
+      background: #0f172a;
+      border-radius: 8px;
+      border: 1px solid #1e293b;
+      overflow: hidden;
+    }
+
+    .agenda-section-header {
+      padding: 8px 12px;
+      background: #1e293b;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+
+    .agenda-section-header.active {
+      background: rgba(56, 189, 248, 0.2);
+      color: #fff;
+    }
+
+    .agenda-slide-item {
+      padding: 6px 12px 6px 20px;
+      font-size: 0.8rem;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      border-top: 1px solid #1e293b;
+    }
+
+    .agenda-slide-item:hover {
+      background: #162032;
+      color: #fff;
+    }
+
+    .agenda-slide-item.active {
+      background: rgba(59, 130, 246, 0.25);
+      color: #fff;
+      font-weight: 700;
+      border-left: 3px solid var(--primary);
+    }
+
+    /* Keymap Helper Bar */
+    .shortcuts-footer {
+      font-size: 0.75rem;
+      color: #64748b;
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+      padding: 12px 0 0 0;
+    }
+    .app-credits-footer {
+      font-size: 0.8rem;
+      color: #64748b;
+      text-align: center;
+      padding: 16px 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      margin-top: 24px;
+      letter-spacing: 0.3px;
+    }
+    .app-credits-footer a {
+      color: #94a3b8;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .app-credits-footer a:hover {
+      color: #38bdf8;
+      text-decoration: underline;
+    }
+    .kbd {
+      background: #1e293b;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #94a3b8;
+      border: 1px solid #334155;
+      font-family: monospace;
+    }
+
+    /* ===================================================
+       EDITOR VIEW STYLES (SECTIONS -> SLIDES -> CUES)
+       =================================================== */
+    .editor-container {
+      max-width: 1050px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .editor-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      padding: 16px 20px;
+      border-radius: 14px;
+    }
+
+    .editor-section-card {
+      background: var(--card-bg);
+      border: 1px solid #334155;
+      border-left: 4px solid var(--primary);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      position: relative;
+    }
+
+    .section-row-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 14px;
+    }
+
+    .editor-slide-card {
+      background: #0b0f19;
+      border: 1px solid #1e293b;
+      border-left: 3px solid #38bdf8;
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-left: 14px;
+    }
+
+    .slide-row-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .input-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    input[type="text"], input[type="number"], textarea {
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-family: inherit;
+    }
+
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* Fixed Time & Number Inputs */
+    .time-num-input {
+      width: 76px !important;
+      padding: 6px 6px !important;
+      text-align: center !important;
+      font-weight: 800 !important;
+      font-size: 1rem !important;
+      border-radius: 8px !important;
+      background: #0b0f19 !important;
+      color: #38bdf8 !important;
+      border: 1px solid #334155 !important;
+      box-sizing: border-box !important;
+    }
+
+    .time-group-container {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      background: #0f172a;
+      padding: 4px 10px;
+      border-radius: 8px;
+      border: 1px solid #1e293b;
+    }
+
+    /* Slide Layout with Thumbnail */
+    .slide-body-grid {
+      display: grid;
+      grid-template-columns: 140px minmax(0, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    @media (max-width: 768px) {
+      .slide-body-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .editor-thumb-box {
+      width: 140px;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #334155;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .editor-thumb-box:hover {
+      border-color: var(--primary);
+      box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+      transform: scale(1.02);
+    }
+
+    .editor-thumb-box canvas {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .editor-thumb-placeholder {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #64748b;
+      text-align: center;
+      padding: 6px;
+      user-select: none;
+    }
+
+    .slide-cues-editor {
+      background: #131c2e;
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border: 1px solid #1e293b;
+    }
+
+    .cue-edit-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .cue-edit-row textarea {
+      flex: 1;
+      resize: vertical;
+      min-height: 40px;
+    }
+
+    .btn-icon {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .btn-icon:hover {
+      background: #334155;
+      color: #fff;
+    }
+
+    /* Modal for raw JSON */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-backdrop.active {
+      display: flex;
+    }
+    .modal-box {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 850px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 700;
+    }
+    .modal-body {
+      padding: 20px;
+      flex: 1;
+      overflow-y: auto;
+    }
+    .modal-footer {
+      padding: 14px 20px;
+      border-top: 1px solid #334155;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+  </style>
+  <script src="assets/pdf.min.js"></script>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <div class="brand">
+      <span>Zent Presenter</span>
+      <span class="brand-badge">Szekció & Dia Pacer</span>
+    </div>
+
+    <div class="nav-tabs">
+      <button id="tabPresenter" class="tab-btn active" onclick="switchView('presenter')">Előadói nézet</button>
+      <button id="tabEditor" class="tab-btn" onclick="switchView('editor')">Forgatókönyv Szerkesztő</button>
+    </div>
+
+    <div class="header-actions">
+      <div id="wakeLockStatus" class="status-pill" title="Megakadályozza, hogy a képernyő kikapcsoljon az előadás alatt">
+        <span id="wakeLockDot" class="status-dot"></span>
+        <span id="wakeLockText">Ébrentartás</span>
+      </div>
+      <div id="projectorStatus" class="status-pill">
+        <span id="projectorDot" class="status-dot"></span>
+        <span id="projectorStatusText">Kivetítő nincs csatlakoztatva</span>
+      </div>
+      <button class="btn btn-primary" onclick="openProjectorWindow()">
+        Kivetítő ablak
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ==============================================
+         1. PRESENTER VIEW (ELŐADÓI KONZOL)
+         ============================================== -->
+    <div id="viewPresenter" class="view-container active">
+      <div class="presenter-grid">
+        <!-- Bal oszlop: Szekció Időzítő + Nagy idézet / Prompter -->
+        <div class="prompter-column">
+          <!-- Szekció Időzítő blokk -->
+          <div id="timerCard" class="timer-card on-track">
+            <div class="timer-header">
+              <div class="section-badge-info">
+                <span id="currentSectionBadge" class="section-badge-pill">1. SZEKCIÓ / 3</span>
+                <span>•</span>
+                <span id="sectionSlideRemainingBadge" class="slides-count-pill">1 / 2 DIA A SZEKCIÓBAN (1 HÁTRA)</span>
+              </div>
+              <div class="global-pace-badge">
+                <span>Összesített előadás-idő</span>
+                <span id="globalPaceText" class="global-pace-val">00:00 / 13:00 (00:00)</span>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 4px; flex-wrap: wrap;">
+              <div id="sectionTitleDisplay" class="section-title-display">Szekció címe</div>
+              <div id="currentSlideGlobalBadge" style="font-size: 0.95rem; font-weight: 700; color: #cbd5e1; background: #1e293b; border: 1px solid #334155; padding: 4px 10px; border-radius: 6px;">1. Dia: Bevezetés</div>
+            </div>
+
+            <div class="timer-main-row">
+              <div style="display: flex; align-items: center; gap: 14px;">
+                <div class="timer-clock green" id="sectionClock">04:00</div>
+                <button id="timerClockPlayBtn" class="btn btn-success" style="font-size: 0.95rem; padding: 8px 14px; border-radius: 8px;" onclick="togglePause()" title="Időzítő indítása vagy szüneteltetése (P)">
+                  Indítás
+                </button>
+              </div>
+              <div id="timerStatusPill" class="timer-status-text green">KÉSZENLÉTBEN (SZÜNET)</div>
+            </div>
+
+            <div class="progress-track">
+              <div id="progressFill" class="progress-fill" style="width: 100%;"></div>
+            </div>
+          </div>
+
+          <!-- Nagy Prompter Kártya -->
+          <div class="prompter-card">
+            <div>
+              <div class="prompter-toolbar">
+                <span id="currentCueBadge" class="cue-indicator">1. Idézet / 3 ezen a dián</span>
+                <div class="font-ctrls">
+                  <button class="font-btn" onclick="adjustFontSize(-0.15)">A-</button>
+                  <button class="font-btn" onclick="adjustFontSize(0.15)">A+</button>
+                </div>
+              </div>
+
+              <!-- Fő idézet kiemelve -->
+              <div class="active-quote-box">
+                <div id="activeQuoteText" class="active-quote-text">
+                  Kattints a "Következő" gombra vagy nyomj Page Down-t a kezdéshez.
+                </div>
+              </div>
+
+              <!-- A dia összes idézete idővonalként -->
+              <div id="blockCuesList" class="block-cues-list">
+                <!-- Ide kerülnek a pöttyök/cues -->
+              </div>
+            </div>
+
+            <!-- Következő lépés előnézete -->
+            <div class="next-preview-box">
+              <div class="next-label" id="nextActionLabel">Következő lépés</div>
+              <div class="next-text" id="nextActionText">2. dia – A prezentáció folytatása...</div>
+            </div>
+          </div>
+
+          <!-- Navigációs és kezelőgombok -->
+          <div class="nav-bar">
+            <div class="step-buttons">
+              <button class="btn btn-secondary big-nav-btn" onclick="prevStep()" title="Előző idézet vagy dia (Page Up / Balra nyíl)">
+                Előző
+              </button>
+              <button class="btn btn-primary big-nav-btn" onclick="nextStep()" title="Következő idézet vagy dia (Page Down / Jobbra nyíl / Szóköz)">
+                Következő
+              </button>
+            </div>
+
+            <div style="display: flex; gap: 8px;">
+              <button id="btnPause" class="btn btn-success" onclick="togglePause()" title="Időzítő indítása vagy szüneteltetése (P)">
+                Indítás
+              </button>
+              <button class="btn btn-secondary" onclick="resetSectionTimer()" title="Szakasz időzítő újraindítása (R)">
+                Újra
+              </button>
+              <button id="btnBlank" class="btn btn-secondary" onclick="toggleBlank()" title="Kivetítő elsötétítése (B)">
+                Fekete kép
+              </button>
+            </div>
+          </div>
+
+          <div class="shortcuts-footer">
+            <span><span class="kbd">PageDown</span> / <span class="kbd">→</span> / <span class="kbd">Szóköz</span> Következő</span>
+            <span><span class="kbd">PageUp</span> / <span class="kbd">←</span> Előző</span>
+            <span><span class="kbd">↑</span> / <span class="kbd">↓</span> Idézet betűméret</span>
+            <span><span class="kbd">P</span> Időzítő indítás/szünet</span>
+            <span><span class="kbd">R</span> Szekció újra</span>
+            <span><span class="kbd">B</span> Fekete kép</span>
+          </div>
+        </div>
+
+        <!-- Jobb oldali sáv: Dia előnézetek és vázlat -->
+        <div class="sidebar-column">
+          <!-- Aktuális dia előnézet -->
+          <div class="sidebar-card">
+            <div class="sidebar-title">
+              <span>Aktuális dia</span>
+              <span id="currentSlideNum">1 / 1</span>
+            </div>
+            <div class="slide-preview-frame">
+              <canvas id="currentSlideCanvas"></canvas>
+              <div id="currentSlidePlaceholder" class="slide-preview-placeholder"></div>
+            </div>
+          </div>
+
+          <!-- Következő dia előnézet -->
+          <div class="sidebar-card">
+            <div class="sidebar-title">
+              <span>Következő dia</span>
+              <span id="nextSlideNum">2 / 1</span>
+            </div>
+            <div class="slide-preview-frame">
+              <canvas id="nextSlideCanvas"></canvas>
+              <div id="nextSlidePlaceholder" class="slide-preview-placeholder">Prezentáció vége</div>
+            </div>
+          </div>
+
+          <!-- Szekciók és Diák vázlatjegyzéke -->
+          <div class="sidebar-card" style="flex: 1;">
+            <div class="sidebar-title">
+              <span>Forgatókönyv vázlat</span>
+            </div>
+            <div id="agendaList" class="agenda-list">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==============================================
+         2. SCRIPT & JSON EDITOR VIEW
+         ============================================== -->
+    <div id="viewEditor" class="view-container">
+      <div class="editor-container">
+        <!-- Eszköztár -->
+        <div class="editor-toolbar">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="btn btn-primary" onclick="exportJsonFile()">JSON letöltése</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('jsonFileInput').click()">JSON betöltése</button>
+            <input type="file" id="jsonFileInput" accept=".json" style="display: none;" onchange="importJsonFile(event)">
+            
+            <button class="btn btn-secondary" onclick="document.getElementById('pdfFileInput').click()">PDF csatolása</button>
+            <input type="file" id="pdfFileInput" accept="application/pdf" style="display: none;" onchange="handlePdfUpload(event)">
+            
+            <button class="btn btn-secondary" onclick="renumberAllSlidesSequentially()" title="Az összes dia automatikus újraszámozása sorban 1-től N-ig">Sorszámok rendezése (1..N)</button>
+            <button class="btn btn-secondary" onclick="loadSampleData()">Minta betöltése</button>
+            <button class="btn btn-secondary" onclick="createNewEmptyPresentation()">Új üres forgatókönyv</button>
+          </div>
+          <div>
+            <button class="btn btn-secondary" onclick="openRawJsonModal()">Nyers JSON</button>
+            <button class="btn btn-success" onclick="switchView('presenter')">Prezentáció indítása</button>
+          </div>
+        </div>
+
+        <!-- Alapadatok -->
+        <div class="editor-section-card" style="border-left-color: #8b5cf6;">
+          <div class="input-group" style="width: 100%;">
+            <label style="min-width: 140px;">Előadás címe:</label>
+            <input type="text" id="presTitleInput" style="flex: 1;" placeholder="pl. A hatékony előadás művészete" oninput="updatePresTitle(this.value)">
+          </div>
+          <div style="display: flex; gap: 20px; font-size: 0.85rem; color: var(--text-muted); flex-wrap: wrap;">
+            <div>Csatolt PDF: <strong id="pdfStatusLabel" style="color: #fff;">Nincs kiválasztva</strong></div>
+            <div>Szekciók: <strong id="totalSectionsCountLabel" style="color: #38bdf8;">0 db</strong></div>
+            <div>Összes dia: <strong id="totalSlidesCountLabel" style="color: #cbd5e1;">0 db</strong></div>
+            <div>Összes tervezett idő: <strong id="totalPlannedTimeLabel" style="color: var(--green);">00:00</strong></div>
+          </div>
+        </div>
+
+        <!-- Szekciók hierarchikus listája -->
+        <div id="editorSectionsList" style="display: flex; flex-direction: column; gap: 20px;">
+          <!-- Dynamically populated -->
+        </div>
+
+        <!-- Új szekció hozzáadása -->
+        <div style="text-align: center; margin-top: 10px;">
+          <button class="btn btn-secondary" style="padding: 14px 28px; font-size: 1.05rem;" onclick="addNewSection()">
+            + Új Szekció hozzáadása
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alsó lábléc -->
+    <footer class="app-credits-footer">
+      Készítette a <a href="https://tanarblog.hu" target="_blank" rel="noopener noreferrer">TanárBlog</a>
+    </footer>
+  </main>
+
+  <!-- MODAL: Nyers JSON szerkesztése -->
+  <div id="rawJsonModal" class="modal-backdrop">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span>Nyers JSON szerkesztése / Másolása</span>
+        <button class="btn-icon" onclick="closeRawJsonModal()" title="Bezárás">&times;</button>
+      </div>
+      <div class="modal-body">
+        <textarea id="rawJsonTextarea" style="width: 100%; height: 420px; font-family: monospace; font-size: 0.85rem;"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeRawJsonModal()">Mégse</button>
+        <button class="btn btn-primary" onclick="saveRawJsonModal()">Alkalmaz és mentés</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'assets/pdf.worker.min.js';
+    }
+
+    const channel = new BroadcastChannel('zent_presenter_channel');
+    let projectorWindowRef = null;
+    let projectorIsConnected = false;
+
+    // Presentation Data Model (Sections -> Slides -> Cues)
+    let presentation = {
+      title: "Új prezentáció",
+      sections: [
+        {
+          title: "Bevezetés",
+          target_seconds: 300,
+          slides: [
+            {
+              slide: 1,
+              title: "Köszöntés",
+              cues: [
+                "Köszönteni a résztvevőket.",
+                "Rövid felvezetés a mai témáról."
+              ]
+            }
+          ]
+        }
+      ]
+    };
+
+    // State Variables (Section, Slide, Cue)
+    let currentSectionIdx = 0;
+    let currentSlideIdx = 0;
+    let currentCueIdx = 0;
+    let fontScale = 1;
+    let isPaused = true; // Starts in PAUSE mode by default
+    let isBlank = false;
+
+    // PDF variables
+    let pdfDoc = null;
+    let pdfRawData = null;
+
+    // Timing Engine (Section elapsed + Total elapsed)
+    let sectionElapsedSeconds = 0;
+    let totalElapsedSeconds = 0;
+    let timerInterval = null;
+
+    // Listen to Projector announcements
+    channel.onmessage = (e) => {
+      if (!e.data) return;
+      if (e.data.type === 'PROJECTOR_READY' || e.data.type === 'PONG') {
+        setProjectorConnected(true);
+        syncToProjector();
+      }
+    };
+
+    function setProjectorConnected(connected) {
+      projectorIsConnected = connected;
+      const dot = document.getElementById('projectorDot');
+      const text = document.getElementById('projectorStatusText');
+      if (connected) {
+        dot.classList.add('active');
+        text.textContent = "Kivetítő csatlakoztatva";
+      } else {
+        dot.classList.remove('active');
+        text.textContent = "Kivetítő nincs megnyitva";
+      }
+    }
+
+    function openProjectorWindow() {
+      projectorWindowRef = window.open('projector.html', 'ZentProjectorWindow', 'width=1280,height=720');
+      setTimeout(() => {
+        setProjectorConnected(true);
+        syncToProjector();
+      }, 800);
+    }
+
+    function getCurrentSlideObj() {
+      const sec = presentation.sections[currentSectionIdx];
+      if (!sec || !sec.slides || sec.slides.length === 0) return null;
+      return sec.slides[currentSlideIdx] || null;
+    }
+
+    function syncToProjector() {
+      const curSec = presentation.sections[currentSectionIdx];
+      const curSlide = getCurrentSlideObj();
+
+      const payload = {
+        type: 'STATE_UPDATE',
+        title: presentation.title,
+        sectionTitle: curSec ? curSec.title : '',
+        slide: curSlide ? (parseInt(curSlide.slide, 10) || 1) : 1,
+        slideTitle: curSlide ? curSlide.title : '',
+        blank: isBlank
+      };
+      channel.postMessage(payload);
+
+      if (pdfRawData) {
+        channel.postMessage({
+          type: 'LOAD_PDF',
+          pdfData: pdfRawData
+        });
+      }
+    }
+
+    // ----------------------------------------------------
+    // TIMING ENGINE
+    // ----------------------------------------------------
+    function startTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        if (!isPaused) {
+          sectionElapsedSeconds++;
+          totalElapsedSeconds++;
+          renderTimer();
+        }
+      }, 1000);
+    }
+
+    function updatePauseButtonState() {
+      const btn = document.getElementById('btnPause');
+      const clockBtn = document.getElementById('timerClockPlayBtn');
+      if (btn) {
+        if (isPaused) {
+          btn.innerHTML = 'Indítás';
+          btn.classList.add('btn-success');
+          btn.classList.remove('btn-secondary');
+          btn.title = "Időzítő elindítása (P)";
+        } else {
+          btn.innerHTML = 'Szünet';
+          btn.classList.remove('btn-success');
+          btn.classList.add('btn-secondary');
+          btn.title = "Időzítő szüneteltetése (P)";
+        }
+      }
+      if (clockBtn) {
+        if (isPaused) {
+          clockBtn.innerHTML = 'Indítás';
+          clockBtn.classList.add('btn-success');
+          clockBtn.classList.remove('btn-secondary');
+        } else {
+          clockBtn.innerHTML = 'Szünet';
+          clockBtn.classList.remove('btn-success');
+          clockBtn.classList.add('btn-secondary');
+        }
+      }
+    }
+
+    function togglePause() {
+      isPaused = !isPaused;
+      updatePauseButtonState();
+      renderTimer();
+    }
+
+    function resetSectionTimer() {
+      sectionElapsedSeconds = 0;
+      renderTimer();
+    }
+
+    function toggleBlank() {
+      isBlank = !isBlank;
+      const btn = document.getElementById('btnBlank');
+      if (isBlank) {
+        btn.classList.add('btn-danger');
+        btn.innerHTML = 'Kép visszaállítása';
+      } else {
+        btn.classList.remove('btn-danger');
+        btn.innerHTML = 'Fekete kép';
+      }
+      syncToProjector();
+    }
+
+    function formatTime(totalSec) {
+      const isNeg = totalSec < 0;
+      const absSec = Math.abs(totalSec);
+      const m = Math.floor(absSec / 60);
+      const s = absSec % 60;
+      const formatted = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+      return isNeg ? `-${formatted}` : formatted;
+    }
+
+    function renderTimer() {
+      const currentSec = presentation.sections[currentSectionIdx];
+      if (!currentSec) return;
+
+      const targetSec = currentSec.target_seconds || 300;
+      const remainingSec = targetSec - sectionElapsedSeconds;
+      const isOvertime = remainingSec < 0;
+
+      const timerCard = document.getElementById('timerCard');
+      const clock = document.getElementById('sectionClock');
+      const statusPill = document.getElementById('timerStatusPill');
+      const progressFill = document.getElementById('progressFill');
+
+      if (!isOvertime) {
+        timerCard.classList.remove('overtime');
+        timerCard.classList.add('on-track');
+        clock.classList.remove('red');
+        clock.classList.add('green');
+        clock.textContent = formatTime(remainingSec);
+        const pct = Math.max(0, Math.min(100, (remainingSec / targetSec) * 100));
+        progressFill.style.width = pct + '%';
+        progressFill.classList.remove('overtime');
+      } else {
+        timerCard.classList.remove('on-track');
+        timerCard.classList.add('overtime');
+        clock.classList.remove('green');
+        clock.classList.add('red');
+        clock.textContent = `+${formatTime(Math.abs(remainingSec))}`;
+        progressFill.style.width = '100%';
+        progressFill.classList.add('overtime');
+      }
+
+      if (isPaused) {
+        statusPill.style.background = 'rgba(245, 158, 11, 0.2)';
+        statusPill.style.color = '#f59e0b';
+        statusPill.textContent = totalElapsedSeconds === 0 ? 'KÉSZENLÉTBEN (SZÜNET)' : 'SZÜNETELTETVE';
+      } else if (!isOvertime) {
+        statusPill.style.background = '';
+        statusPill.style.color = '';
+        statusPill.classList.remove('red');
+        statusPill.classList.add('green');
+        statusPill.textContent = 'SZEKCIÓBÓL HÁTRA';
+      } else {
+        statusPill.style.background = '';
+        statusPill.style.color = '';
+        statusPill.classList.remove('green');
+        statusPill.classList.add('red');
+        statusPill.textContent = 'SZEKCIÓ IDŐTÚLLÉPÉS!';
+      }
+
+      // Calculate Total presentation elapsed vs target
+      let totalTargetSec = presentation.sections.reduce((sum, s) => sum + (s.target_seconds || 0), 0);
+
+      let plannedElapsedSoFar = 0;
+      for (let i = 0; i < currentSectionIdx; i++) {
+        plannedElapsedSoFar += (presentation.sections[i].target_seconds || 0);
+      }
+      plannedElapsedSoFar += Math.min(sectionElapsedSeconds, targetSec);
+      const overallDelta = totalElapsedSeconds - plannedElapsedSoFar;
+      const deltaSign = overallDelta > 0 ? `+${formatTime(overallDelta)}` : formatTime(overallDelta);
+
+      const paceText = document.getElementById('globalPaceText');
+      paceText.textContent = `${formatTime(totalElapsedSeconds)} / ${formatTime(totalTargetSec)} (${deltaSign})`;
+    }
+
+    // ----------------------------------------------------
+    // STEPPING LOGIC (CLICKER & KEYBOARD)
+    // ----------------------------------------------------
+    function nextStep() {
+      const curSection = presentation.sections[currentSectionIdx];
+      if (!curSection) return;
+      const curSlide = getCurrentSlideObj();
+      if (!curSlide) return;
+
+      const cues = curSlide.cues || [];
+      if (currentCueIdx < cues.length - 1) {
+        // 1. Advance to next quote on the SAME slide
+        currentCueIdx++;
+        updatePresenterUI();
+      } else if (currentSlideIdx < curSection.slides.length - 1) {
+        // 2. Next slide within the SAME section (section timer keeps running!)
+        currentSlideIdx++;
+        currentCueIdx = 0;
+        updatePresenterUI();
+        syncToProjector();
+      } else if (currentSectionIdx < presentation.sections.length - 1) {
+        // 3. Last slide in this section -> Next section!
+        currentSectionIdx++;
+        currentSlideIdx = 0;
+        currentCueIdx = 0;
+        sectionElapsedSeconds = 0; // Reset section timer for the new section
+        updatePresenterUI();
+        syncToProjector();
+      }
+    }
+
+    function prevStep() {
+      if (currentCueIdx > 0) {
+        currentCueIdx--;
+        updatePresenterUI();
+      } else if (currentSlideIdx > 0) {
+        currentSlideIdx--;
+        const slide = getCurrentSlideObj();
+        currentCueIdx = Math.max(0, (slide.cues || []).length - 1);
+        updatePresenterUI();
+        syncToProjector();
+      } else if (currentSectionIdx > 0) {
+        currentSectionIdx--;
+        const prevSec = presentation.sections[currentSectionIdx];
+        currentSlideIdx = Math.max(0, (prevSec.slides || []).length - 1);
+        const slide = getCurrentSlideObj();
+        currentCueIdx = Math.max(0, (slide.cues || []).length - 1);
+        sectionElapsedSeconds = 0;
+        updatePresenterUI();
+        syncToProjector();
+      }
+    }
+
+    function jumpToSlide(secIdx, slideIdx) {
+      if (secIdx >= 0 && secIdx < presentation.sections.length) {
+        const sec = presentation.sections[secIdx];
+        if (sec.slides && slideIdx >= 0 && slideIdx < sec.slides.length) {
+          if (currentSectionIdx !== secIdx) {
+            sectionElapsedSeconds = 0; // reset if jumping to another section
+          }
+          currentSectionIdx = secIdx;
+          currentSlideIdx = slideIdx;
+          currentCueIdx = 0;
+          updatePresenterUI();
+          syncToProjector();
+        }
+      }
+    }
+
+    // Keyboard controls for Clicker
+    document.addEventListener('keydown', (e) => {
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+      if (e.key === 'PageDown' || e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        nextStep();
+      } else if (e.key === 'PageUp' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        prevStep();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        adjustFontSize(0.15);
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        adjustFontSize(-0.15);
+      } else if (e.key === 'p' || e.key === 'P') {
+        togglePause();
+      } else if (e.key === 'r' || e.key === 'R') {
+        resetSectionTimer();
+      } else if (e.key === 'b' || e.key === 'B') {
+        toggleBlank();
+      }
+    });
+
+    // ----------------------------------------------------
+    // PRESENTER UI UPDATES
+    // ----------------------------------------------------
+    function updatePresenterUI() {
+      const curSec = presentation.sections[currentSectionIdx];
+      if (!curSec) return;
+      const curSlide = getCurrentSlideObj();
+      const cues = curSlide ? (curSlide.cues || []) : [];
+
+      // Calculate global slide numbers
+      let totalSlidesGlobal = 0;
+      let currentSlideGlobal = 0;
+      for (let s = 0; s < presentation.sections.length; s++) {
+        const sSlides = presentation.sections[s].slides || [];
+        for (let sl = 0; sl < sSlides.length; sl++) {
+          totalSlidesGlobal++;
+          if (s < currentSectionIdx || (s === currentSectionIdx && sl <= currentSlideIdx)) {
+            currentSlideGlobal++;
+          }
+        }
+      }
+
+      const totalSlidesInSection = curSec.slides ? curSec.slides.length : 1;
+      const remainingSlidesInSection = Math.max(0, totalSlidesInSection - 1 - currentSlideIdx);
+
+      // Section and Slide Badges
+      document.getElementById('currentSectionBadge').textContent = `${currentSectionIdx + 1}. SZEKCIÓ / ${presentation.sections.length}`;
+      document.getElementById('sectionSlideRemainingBadge').textContent = `${currentSlideIdx + 1} / ${totalSlidesInSection} DIA A SZEKCIÓBAN (${remainingSlidesInSection} HÁTRA)`;
+      document.getElementById('sectionTitleDisplay').textContent = curSec.title || 'Névtelen szekció';
+      document.getElementById('currentSlideGlobalBadge').textContent = `${curSlide ? curSlide.slide : 1}. Dia: ${curSlide ? curSlide.title : ''} (${currentSlideGlobal}/${totalSlidesGlobal})`;
+
+      // Cue indicator
+      document.getElementById('currentCueBadge').textContent = `${currentCueIdx + 1}. IDÉZET / ${cues.length || 1} (EZEN A DIÁN)`;
+
+      // Active Quote Text
+      const activeText = cues[currentCueIdx] || "(Nincs idézet megadva ehhez a diához)";
+      document.getElementById('activeQuoteText').textContent = activeText;
+
+      // Block Cues List (Timeline on this slide)
+      const cuesListContainer = document.getElementById('blockCuesList');
+      cuesListContainer.innerHTML = '';
+      cues.forEach((cue, idx) => {
+        const item = document.createElement('div');
+        item.className = 'cue-pill';
+        if (idx < currentCueIdx) item.classList.add('done');
+        if (idx === currentCueIdx) item.classList.add('current');
+
+        const dot = document.createElement('span');
+        dot.className = 'cue-dot';
+        item.appendChild(dot);
+
+        const txt = document.createElement('span');
+        txt.textContent = `${idx + 1}. ${cue}`;
+        txt.style.overflow = 'hidden';
+        txt.style.textOverflow = 'ellipsis';
+        txt.style.whiteSpace = 'nowrap';
+        txt.style.minWidth = '0';
+        txt.style.flex = '1';
+        item.appendChild(txt);
+
+        cuesListContainer.appendChild(item);
+      });
+
+      // Next Action Preview
+      const nextLabel = document.getElementById('nextActionLabel');
+      const nextText = document.getElementById('nextActionText');
+
+      if (currentCueIdx < cues.length - 1) {
+        nextLabel.textContent = `Következő mondat ezen a dián (${currentCueIdx + 2}/${cues.length}):`;
+        nextText.textContent = cues[currentCueIdx + 1];
+      } else if (currentSlideIdx < curSec.slides.length - 1) {
+        const nextSlide = curSec.slides[currentSlideIdx + 1];
+        nextLabel.textContent = `Következő dia ebben a szekcióban (${nextSlide.slide}. oldal):`;
+        nextText.textContent = `${nextSlide.title} — "${(nextSlide.cues && nextSlide.cues[0]) || ''}"`;
+      } else if (currentSectionIdx < presentation.sections.length - 1) {
+        const nextSec = presentation.sections[currentSectionIdx + 1];
+        const nextSlide = (nextSec.slides && nextSec.slides[0]) ? nextSec.slides[0] : { slide: 1, title: '' };
+        nextLabel.textContent = `Következő szekció (${nextSec.title}):`;
+        nextText.textContent = `${nextSlide.slide}. Dia: ${nextSlide.title} — "${(nextSlide.cues && nextSlide.cues[0]) || ''}"`;
+      } else {
+        nextLabel.textContent = "Prezentáció vége";
+        nextText.textContent = "Ez volt az utolsó dia és idézet.";
+      }
+
+      renderAgendaList();
+      renderTimer();
+      renderSlidePreviews();
+    }
+
+    function renderAgendaList() {
+      const container = document.getElementById('agendaList');
+      container.innerHTML = '';
+
+      presentation.sections.forEach((sec, sIdx) => {
+        const group = document.createElement('div');
+        group.className = 'agenda-section-group';
+
+        const secHeader = document.createElement('div');
+        secHeader.className = 'agenda-section-header';
+        if (sIdx === currentSectionIdx) secHeader.classList.add('active');
+        secHeader.onclick = () => jumpToSlide(sIdx, 0);
+
+        secHeader.innerHTML = `
+          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 190px;">${sIdx + 1}. ${sec.title}</span>
+          <span style="font-size: 0.75rem; color: #94a3b8;">${formatTime(sec.target_seconds || 300)}</span>
+        `;
+        group.appendChild(secHeader);
+
+        (sec.slides || []).forEach((sl, slIdx) => {
+          const item = document.createElement('div');
+          item.className = 'agenda-slide-item';
+          if (sIdx === currentSectionIdx && slIdx === currentSlideIdx) item.classList.add('active');
+          item.onclick = (e) => {
+            e.stopPropagation();
+            jumpToSlide(sIdx, slIdx);
+          };
+
+          item.innerHTML = `
+            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px;">${sl.slide}. ${sl.title}</span>
+            <span style="font-size: 0.7rem; color: #64748b;">${(sl.cues || []).length} id.</span>
+          `;
+          group.appendChild(item);
+        });
+
+        container.appendChild(group);
+      });
+    }
+
+    function adjustFontSize(delta) {
+      fontScale = Math.max(0.6, Math.min(2.5, fontScale + delta));
+      document.documentElement.style.setProperty('--font-scale', fontScale);
+      try {
+        localStorage.setItem('zent_font_scale', fontScale);
+      } catch (e) {}
+    }
+
+    // ----------------------------------------------------
+    // PDF & FALLBACK RENDERING FOR SPEAKER PREVIEWS
+    // ----------------------------------------------------
+    let thumbRenderTasks = {};
+
+    async function renderSlidePreviews() {
+      const curSec = presentation.sections[currentSectionIdx];
+      const curSlide = getCurrentSlideObj();
+      const curSlideNum = curSlide ? (parseInt(curSlide.slide, 10) || 1) : 1;
+
+      // Find next slide across section boundary
+      let nextSlideNum = -1;
+      let nextSlideTitle = '';
+      if (curSec && currentSlideIdx < curSec.slides.length - 1) {
+        const nextSl = curSec.slides[currentSlideIdx + 1];
+        nextSlideNum = parseInt(nextSl.slide, 10) || (curSlideNum + 1);
+        nextSlideTitle = nextSl.title;
+      } else if (currentSectionIdx < presentation.sections.length - 1) {
+        const nextSec = presentation.sections[currentSectionIdx + 1];
+        if (nextSec.slides && nextSec.slides[0]) {
+          nextSlideNum = parseInt(nextSec.slides[0].slide, 10) || (curSlideNum + 1);
+          nextSlideTitle = nextSec.slides[0].title;
+        }
+      }
+
+      // 1. IF NO PDF ATTACHED: Render informative cards that mirror the projector
+      if (!pdfDoc) {
+        document.getElementById('currentSlideCanvas').style.display = 'none';
+        document.getElementById('nextSlideCanvas').style.display = 'none';
+
+        const curPh = document.getElementById('currentSlidePlaceholder');
+        curPh.style.display = 'flex';
+        curPh.innerHTML = `
+          <div style="background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; border-radius: 8px; padding: 12px 16px; width: 85%; text-align: center;">
+            <div style="font-size: 0.8rem; font-weight: 800; color: #60a5fa; text-transform: uppercase; margin-bottom: 4px;">${curSlideNum}. DIA</div>
+            <div style="font-size: 0.95rem; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${curSlide ? (curSlide.title || 'Névtelen dia') : ''}</div>
+          </div>
+        `;
+        document.getElementById('currentSlideNum').textContent = `${curSlideNum}`;
+
+        const nextPh = document.getElementById('nextSlidePlaceholder');
+        nextPh.style.display = 'flex';
+        if (nextSlideNum > 0) {
+          nextPh.innerHTML = `
+            <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid #334155; border-radius: 8px; padding: 12px 16px; width: 85%; text-align: center;">
+              <div style="font-size: 0.8rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px;">${nextSlideNum}. DIA</div>
+              <div style="font-size: 0.95rem; font-weight: 700; color: #cbd5e1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${nextSlideTitle || 'Névtelen dia'}</div>
+            </div>
+          `;
+          document.getElementById('nextSlideNum').textContent = `${nextSlideNum}`;
+        } else {
+          nextPh.innerHTML = `<span style="color: #64748b; font-size: 0.85rem;">Prezentáció vége</span>`;
+          document.getElementById('nextSlideNum').textContent = `-`;
+        }
+        return;
+      }
+
+      // 2. IF PDF ATTACHED: Render PDF canvas
+      document.getElementById('currentSlidePlaceholder').style.display = 'none';
+      document.getElementById('nextSlidePlaceholder').style.display = 'none';
+      document.getElementById('currentSlideCanvas').style.display = 'block';
+      document.getElementById('currentSlideNum').textContent = `${curSlideNum} / ${pdfDoc.numPages}`;
+
+      await renderThumb(curSlideNum, 'currentSlideCanvas');
+
+      if (nextSlideNum >= 1 && nextSlideNum <= pdfDoc.numPages) {
+        document.getElementById('nextSlidePlaceholder').style.display = 'none';
+        document.getElementById('nextSlideCanvas').style.display = 'block';
+        document.getElementById('nextSlideNum').textContent = `${nextSlideNum} / ${pdfDoc.numPages}`;
+        await renderThumb(nextSlideNum, 'nextSlideCanvas');
+      } else {
+        document.getElementById('nextSlideCanvas').style.display = 'none';
+        const nextPh = document.getElementById('nextSlidePlaceholder');
+        nextPh.style.display = 'flex';
+        nextPh.innerHTML = `<span style="color: #64748b; font-size: 0.85rem;">Prezentáció vége</span>`;
+        document.getElementById('nextSlideNum').textContent = `-`;
+      }
+    }
+
+    async function renderThumb(pageNum, canvasId) {
+      pageNum = parseInt(pageNum, 10);
+      if (!pdfDoc || isNaN(pageNum) || pageNum < 1 || pageNum > pdfDoc.numPages) return;
+
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+
+      if (thumbRenderTasks[canvasId]) {
+        try {
+          thumbRenderTasks[canvasId].cancel();
+        } catch (e) {}
+        thumbRenderTasks[canvasId] = null;
+      }
+
+      try {
+        const page = await pdfDoc.getPage(pageNum);
+        const ctx = canvas.getContext('2d');
+
+        const containerWidth = canvas.parentElement ? (canvas.parentElement.clientWidth || 320) : 320;
+        const unscaledViewport = page.getViewport({ scale: 1.0 });
+        const scale = Math.max(0.2, (containerWidth * 1.2) / unscaledViewport.width);
+        const viewport = page.getViewport({ scale: scale });
+
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+
+        const renderTask = page.render({
+          canvasContext: ctx,
+          viewport: viewport
+        });
+        thumbRenderTasks[canvasId] = renderTask;
+        await renderTask.promise;
+        thumbRenderTasks[canvasId] = null;
+      } catch (err) {
+        if (err.name !== 'RenderingCancelledException') {
+          console.error("Preview render hiba:", err);
+        }
+      }
+    }
+
+    async function handlePdfUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      document.getElementById('pdfStatusLabel').textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+
+      const arrayBuffer = await file.arrayBuffer();
+      pdfRawData = arrayBuffer.slice(0);
+
+      if (window.pdfjsLib) {
+        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        pdfDoc = await loadingTask.promise;
+        renderSlidePreviews();
+        renderAllEditorThumbs();
+        syncToProjector();
+      }
+    }
+
+    // ----------------------------------------------------
+    // FORGATÓKÖNYV SZERKESZTŐ (SECTIONS -> SLIDES -> CUES)
+    // ----------------------------------------------------
+    function normalizePresentation(data) {
+      if (!data) return { title: "Új prezentáció", sections: [] };
+      if (!Array.isArray(data.sections)) data.sections = [];
+
+      // Support legacy format where sections had cues directly
+      data.sections.forEach((sec, sIdx) => {
+        if (!sec.title) sec.title = `Szekció ${sIdx + 1}`;
+        if (typeof sec.target_seconds === 'undefined') sec.target_seconds = 300;
+
+        if (!Array.isArray(sec.slides)) {
+          if (Array.isArray(sec.cues)) {
+            sec.slides = [
+              {
+                slide: sec.slide || (sIdx + 1),
+                title: sec.title || `Dia ${sIdx + 1}`,
+                cues: sec.cues
+              }
+            ];
+            delete sec.cues;
+          } else {
+            sec.slides = [
+              {
+                slide: sIdx + 1,
+                title: `Dia ${sIdx + 1}`,
+                cues: ["Idézet vagy vázlatpont szövege..."]
+              }
+            ];
+          }
+        }
+
+        sec.slides.forEach((sl, slIdx) => {
+          if (typeof sl.slide === 'undefined') sl.slide = slIdx + 1;
+          if (!sl.title) sl.title = `Dia ${sl.slide}`;
+          if (!Array.isArray(sl.cues)) sl.cues = ["Idézet szövege..."];
+        });
+      });
+
+      if (data.sections.length === 0) {
+        data.sections.push({
+          title: "Bevezetés",
+          target_seconds: 300,
+          slides: [
+            {
+              slide: 1,
+              title: "Köszöntés",
+              cues: ["Köszönteni a hallgatóságot."]
+            }
+          ]
+        });
+      }
+      return data;
+    }
+
+    function renderEditor() {
+      saveToStorage();
+      document.getElementById('presTitleInput').value = presentation.title || '';
+      const list = document.getElementById('editorSectionsList');
+      list.innerHTML = '';
+
+      let totalSec = 0;
+      let totalSlidesCount = 0;
+
+      presentation.sections.forEach((sec, sIdx) => {
+        totalSec += (sec.target_seconds || 0);
+        totalSlidesCount += (sec.slides ? sec.slides.length : 0);
+
+        const card = document.createElement('div');
+        card.className = 'editor-section-card';
+
+        // Section Header
+        const header = document.createElement('div');
+        header.className = 'section-row-header';
+
+        const leftGroup = document.createElement('div');
+        leftGroup.style.display = 'flex';
+        leftGroup.style.gap = '14px';
+        leftGroup.style.alignItems = 'center';
+        leftGroup.style.flexWrap = 'wrap';
+
+        // Szekció badge & Cím
+        const titleGroup = document.createElement('div');
+        titleGroup.className = 'input-group';
+        titleGroup.innerHTML = `
+          <label style="color: #38bdf8;">${sIdx + 1}. Szekció címe:</label>
+          <input type="text" value="${sec.title || ''}" placeholder="pl. Bevezetés" style="width: 280px; font-weight: 700;" onchange="updateSectionField(${sIdx}, 'title', this.value)">
+        `;
+        leftGroup.appendChild(titleGroup);
+
+        // Section Target Time
+        const curMins = Math.floor((sec.target_seconds || 300) / 60);
+        const curSecs = (sec.target_seconds || 300) % 60;
+        const timeGroup = document.createElement('div');
+        timeGroup.className = 'time-group-container';
+        timeGroup.innerHTML = `
+          <label style="margin-right: 4px;">Tervezett idő:</label>
+          <input type="number" class="time-num-input" min="0" value="${curMins}" title="Perc" onchange="updateSectionDuration(${sIdx}, parseInt(this.value), null)">
+          <span style="font-weight: 700; color: #94a3b8; font-size: 0.85rem;">p</span>
+          <input type="number" class="time-num-input" min="0" max="59" value="${curSecs}" title="Másodperc" onchange="updateSectionDuration(${sIdx}, null, parseInt(this.value))">
+          <span style="font-weight: 700; color: #94a3b8; font-size: 0.85rem;">mp</span>
+        `;
+        leftGroup.appendChild(timeGroup);
+
+        header.appendChild(leftGroup);
+
+        // Section actions
+        const actionGroup = document.createElement('div');
+        actionGroup.style.display = 'flex';
+        actionGroup.style.gap = '6px';
+        actionGroup.innerHTML = `
+          <button class="btn-icon" title="Szekció fel" onclick="moveSection(${sIdx}, -1)" ${sIdx === 0 ? 'disabled' : ''}>↑</button>
+          <button class="btn-icon" title="Szekció le" onclick="moveSection(${sIdx}, 1)" ${sIdx === presentation.sections.length - 1 ? 'disabled' : ''}>↓</button>
+          <button class="btn btn-secondary" style="font-size: 0.75rem; padding: 3px 8px;" title="Szekció másolása" onclick="duplicateSection(${sIdx})">Másolás</button>
+          <button class="btn btn-secondary" style="font-size: 0.75rem; padding: 3px 8px; color: var(--red); border-color: rgba(239, 68, 68, 0.4);" title="Szekció törlése" onclick="deleteSection(${sIdx})">Törlés</button>
+        `;
+        header.appendChild(actionGroup);
+        card.appendChild(header);
+
+        // Diák konténer ebben a szekcióban
+        const slidesContainer = document.createElement('div');
+        slidesContainer.style.display = 'flex';
+        slidesContainer.style.flexDirection = 'column';
+        slidesContainer.style.gap = '14px';
+
+        (sec.slides || []).forEach((slide, slIdx) => {
+          const slideCard = document.createElement('div');
+          slideCard.className = 'editor-slide-card';
+
+          // Slide Row Header
+          const slideHeader = document.createElement('div');
+          slideHeader.className = 'slide-row-header';
+
+          const slideInfo = document.createElement('div');
+          slideInfo.style.display = 'flex';
+          slideInfo.style.gap = '10px';
+          slideInfo.style.alignItems = 'center';
+          slideInfo.style.flexWrap = 'wrap';
+
+          slideInfo.innerHTML = `
+            <div class="input-group" style="white-space: nowrap;">
+              <label>Dia:</label>
+              <input type="number" class="time-num-input" style="width: 70px !important;" min="1" value="${slide.slide || (slIdx + 1)}" onchange="updateSlideField(${sIdx}, ${slIdx}, 'slide', parseInt(this.value))">
+            </div>
+            <div class="input-group" style="flex: 1; min-width: 200px;">
+              <label>Cím:</label>
+              <input type="text" value="${slide.title || ''}" placeholder="Dia címe" style="width: 100%; min-width: 180px;" onchange="updateSlideField(${sIdx}, ${slIdx}, 'title', this.value)">
+            </div>
+          `;
+          slideHeader.appendChild(slideInfo);
+
+          const slideActions = document.createElement('div');
+          slideActions.style.display = 'flex';
+          slideActions.style.gap = '4px';
+          slideActions.innerHTML = `
+            <button class="btn btn-secondary" style="font-size: 0.75rem; padding: 3px 8px;" title="Új dia beszúrása ezután, és az utána lévő diák sorszámának növelése (+1)" onclick="insertSlideAfterWithShift(${sIdx}, ${slIdx})">+ Beszúrás (+1)</button>
+            <button class="btn-icon" title="Dia fel a szekcióban" onclick="moveSlide(${sIdx}, ${slIdx}, -1)" ${slIdx === 0 ? 'disabled' : ''}>↑</button>
+            <button class="btn-icon" title="Dia le a szekcióban" onclick="moveSlide(${sIdx}, ${slIdx}, 1)" ${slIdx === (sec.slides.length - 1) ? 'disabled' : ''}>↓</button>
+            <button class="btn btn-secondary" style="font-size: 0.75rem; padding: 3px 8px; color: var(--red); border-color: rgba(239, 68, 68, 0.4);" title="Dia törlése" onclick="deleteSlide(${sIdx}, ${slIdx})">Törlés</button>
+          `;
+          slideHeader.appendChild(slideActions);
+          slideCard.appendChild(slideHeader);
+
+          // Grid containing thumbnail on the left and cues on the right
+          const slideBodyGrid = document.createElement('div');
+          slideBodyGrid.className = 'slide-body-grid';
+
+          // Mini preview thumbnail box
+          const thumbBox = document.createElement('div');
+          thumbBox.className = 'editor-thumb-box';
+          thumbBox.id = `editorThumbBox_${sIdx}_${slIdx}`;
+          thumbBox.title = `Dia #${slide.slide} előnézete (Kattints az előadói ugráshoz)`;
+          thumbBox.onclick = () => {
+            jumpToSlide(sIdx, slIdx);
+            switchView('presenter');
+          };
+          thumbBox.innerHTML = `
+            <canvas id="editorSlideCanvas_${sIdx}_${slIdx}" style="display: none;"></canvas>
+            <div id="editorSlidePlaceholder_${sIdx}_${slIdx}" class="editor-thumb-placeholder">${slide.slide || (slIdx + 1)}. Dia</div>
+          `;
+          slideBodyGrid.appendChild(thumbBox);
+
+          // Cues List column
+          const cuesColumn = document.createElement('div');
+          cuesColumn.style.minWidth = '0';
+          cuesColumn.style.display = 'flex';
+          cuesColumn.style.flexDirection = 'column';
+          cuesColumn.style.gap = '8px';
+
+          const cuesBox = document.createElement('div');
+          cuesBox.className = 'slide-cues-editor';
+
+          (slide.cues || []).forEach((cue, cIdx) => {
+            const row = document.createElement('div');
+            row.className = 'cue-edit-row';
+
+            const idxBadge = document.createElement('span');
+            idxBadge.style.color = '#94a3b8';
+            idxBadge.style.fontSize = '0.8rem';
+            idxBadge.style.fontWeight = '700';
+            idxBadge.style.minWidth = '22px';
+            idxBadge.textContent = `${cIdx + 1}.`;
+            row.appendChild(idxBadge);
+
+            const textarea = document.createElement('textarea');
+            textarea.rows = 2;
+            textarea.value = cue;
+            textarea.placeholder = "Idézet vagy vázlatpont szövege...";
+            textarea.onchange = (e) => updateCueText(sIdx, slIdx, cIdx, e.target.value);
+            row.appendChild(textarea);
+
+            const cueActions = document.createElement('div');
+            cueActions.style.display = 'flex';
+            cueActions.style.gap = '4px';
+            cueActions.innerHTML = `
+              <button class="btn-icon" title="Fel" onclick="moveCue(${sIdx}, ${slIdx}, ${cIdx}, -1)" ${cIdx === 0 ? 'disabled' : ''}>↑</button>
+              <button class="btn-icon" title="Le" onclick="moveCue(${sIdx}, ${slIdx}, ${cIdx}, 1)" ${cIdx === (slide.cues.length - 1) ? 'disabled' : ''}>↓</button>
+              <button class="btn btn-secondary" style="font-size: 0.75rem; padding: 2px 6px; color: var(--red); border-color: rgba(239, 68, 68, 0.4);" title="Törlés" onclick="deleteCue(${sIdx}, ${slIdx}, ${cIdx})">Törlés</button>
+            `;
+            row.appendChild(cueActions);
+            cuesBox.appendChild(row);
+          });
+
+          const addCueBtn = document.createElement('button');
+          addCueBtn.className = 'btn btn-secondary';
+          addCueBtn.style.alignSelf = 'flex-start';
+          addCueBtn.style.fontSize = '0.8rem';
+          addCueBtn.innerHTML = '+ Új idézet ehhez a diához';
+          addCueBtn.onclick = () => addCue(sIdx, slIdx);
+
+          cuesColumn.appendChild(cuesBox);
+          cuesColumn.appendChild(addCueBtn);
+
+          slideBodyGrid.appendChild(cuesColumn);
+          slideCard.appendChild(slideBodyGrid);
+          slidesContainer.appendChild(slideCard);
+        });
+
+        // Add Slide Button in Section
+        const addSlideBtn = document.createElement('button');
+        addSlideBtn.className = 'btn btn-secondary';
+        addSlideBtn.style.alignSelf = 'flex-start';
+        addSlideBtn.style.marginLeft = '14px';
+        addSlideBtn.style.fontSize = '0.85rem';
+        addSlideBtn.innerHTML = `+ Új dia hozzáadása a(z) ${sIdx + 1}. szekcióhoz`;
+        addSlideBtn.onclick = () => addNewSlideToSection(sIdx);
+        slidesContainer.appendChild(addSlideBtn);
+        slidesContainer.appendChild(addSlideBtn);
+
+        card.appendChild(slidesContainer);
+        list.appendChild(card);
+      });
+
+      document.getElementById('totalSectionsCountLabel').textContent = `${presentation.sections.length} db`;
+      document.getElementById('totalSlidesCountLabel').textContent = `${totalSlidesCount} db`;
+      document.getElementById('totalPlannedTimeLabel').textContent = formatTime(totalSec);
+      renderAllEditorThumbs();
+    }
+
+    function updatePresTitle(val) {
+      presentation.title = val;
+      saveToStorage();
+    }
+
+    function updateSectionField(sIdx, field, val) {
+      presentation.sections[sIdx][field] = val;
+      renderEditor();
+    }
+
+    function updateSectionDuration(sIdx, mins, secs) {
+      const curSec = presentation.sections[sIdx].target_seconds || 300;
+      let m = Math.floor(curSec / 60);
+      let s = curSec % 60;
+      if (mins !== null) m = mins;
+      if (secs !== null) s = secs;
+      presentation.sections[sIdx].target_seconds = (m * 60) + s;
+      renderEditor();
+    }
+
+    function updateSlideField(sIdx, slIdx, field, val) {
+      presentation.sections[sIdx].slides[slIdx][field] = val;
+      saveToStorage();
+      if (field === 'slide') {
+        renderEditorSlideThumb(sIdx, slIdx, val);
+        renderAgendaList();
+      }
+    }
+
+    let editorThumbTasks = {};
+
+    async function renderEditorSlideThumb(sIdx, slIdx, pageNum) {
+      const canvasId = `editorSlideCanvas_${sIdx}_${slIdx}`;
+      const placeholderId = `editorSlidePlaceholder_${sIdx}_${slIdx}`;
+      const canvas = document.getElementById(canvasId);
+      const placeholder = document.getElementById(placeholderId);
+      if (!canvas) return;
+
+      pageNum = parseInt(pageNum, 10);
+      if (!pdfDoc || isNaN(pageNum) || pageNum < 1 || pageNum > pdfDoc.numPages) {
+        canvas.style.display = 'none';
+        if (placeholder) {
+          placeholder.style.display = 'flex';
+          placeholder.textContent = `${pageNum || (slIdx + 1)}. Dia`;
+        }
+        return;
+      }
+
+      if (editorThumbTasks[canvasId]) {
+        try {
+          editorThumbTasks[canvasId].cancel();
+        } catch (e) {}
+        editorThumbTasks[canvasId] = null;
+      }
+
+      try {
+        const page = await pdfDoc.getPage(pageNum);
+        const ctx = canvas.getContext('2d');
+        const targetWidth = 140;
+        const unscaled = page.getViewport({ scale: 1.0 });
+        const scale = targetWidth / unscaled.width;
+        const viewport = page.getViewport({ scale: scale });
+
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        canvas.style.display = 'block';
+        if (placeholder) placeholder.style.display = 'none';
+
+        const task = page.render({ canvasContext: ctx, viewport: viewport });
+        editorThumbTasks[canvasId] = task;
+        await task.promise;
+        editorThumbTasks[canvasId] = null;
+      } catch (err) {
+        if (err.name !== 'RenderingCancelledException') {
+          console.error("Editor thumb render hiba:", err);
+        }
+      }
+    }
+
+    async function renderAllEditorThumbs() {
+      if (!pdfDoc) return;
+      presentation.sections.forEach((sec, sIdx) => {
+        (sec.slides || []).forEach((slide, slIdx) => {
+          renderEditorSlideThumb(sIdx, slIdx, slide.slide || (slIdx + 1));
+        });
+      });
+    }
+
+    function updateCueText(sIdx, slIdx, cIdx, text) {
+      presentation.sections[sIdx].slides[slIdx].cues[cIdx] = text;
+      saveToStorage();
+    }
+
+    function addCue(sIdx, slIdx) {
+      if (!presentation.sections[sIdx].slides[slIdx].cues) {
+        presentation.sections[sIdx].slides[slIdx].cues = [];
+      }
+      presentation.sections[sIdx].slides[slIdx].cues.push("Új idézet vagy vázlatpont szövege...");
+      renderEditor();
+    }
+
+    function deleteCue(sIdx, slIdx, cIdx) {
+      presentation.sections[sIdx].slides[slIdx].cues.splice(cIdx, 1);
+      renderEditor();
+    }
+
+    function moveCue(sIdx, slIdx, cIdx, delta) {
+      const list = presentation.sections[sIdx].slides[slIdx].cues;
+      const target = cIdx + delta;
+      if (target >= 0 && target < list.length) {
+        const item = list.splice(cIdx, 1)[0];
+        list.splice(target, 0, item);
+        renderEditor();
+      }
+    }
+
+    function addNewSlideToSection(sIdx) {
+      const sec = presentation.sections[sIdx];
+      let nextSlideNum = 1;
+
+      // Find highest slide number in presentation
+      presentation.sections.forEach(s => {
+        (s.slides || []).forEach(sl => {
+          const num = parseInt(sl.slide, 10);
+          if (!isNaN(num) && num >= nextSlideNum) nextSlideNum = num + 1;
+        });
+      });
+
+      sec.slides.push({
+        slide: nextSlideNum,
+        title: `Új dia (${nextSlideNum}.)`,
+        cues: ["Első idézet ehhez a diához."]
+      });
+      renderEditor();
+    }
+
+    function moveSlide(sIdx, slIdx, delta) {
+      const list = presentation.sections[sIdx].slides;
+      const target = slIdx + delta;
+      if (target >= 0 && target < list.length) {
+        const item = list.splice(slIdx, 1)[0];
+        list.splice(target, 0, item);
+        renderEditor();
+      }
+    }
+
+    function deleteSlide(sIdx, slIdx) {
+      if (presentation.sections[sIdx].slides.length <= 1) {
+        alert("Egy szekciónak legalább egy diát tartalmaznia kell!");
+        return;
+      }
+      if (confirm("Biztosan törlöd ezt a diát?")) {
+        presentation.sections[sIdx].slides.splice(slIdx, 1);
+        renderEditor();
+      }
+    }
+
+    function insertSlideAfterWithShift(sIdx, slIdx) {
+      const currentSlide = presentation.sections[sIdx].slides[slIdx];
+      const curNum = parseInt(currentSlide.slide, 10) || (slIdx + 1);
+      const newNum = curNum + 1;
+
+      // Minden olyan dia sorszámát megnöveljük +1-gyel az egész prezentációban,
+      // amely a beszúrási pont után következik (sorszáma >= newNum)
+      presentation.sections.forEach(sec => {
+        (sec.slides || []).forEach(sl => {
+          const n = parseInt(sl.slide, 10);
+          if (!isNaN(n) && n >= newNum) {
+            sl.slide = n + 1;
+          }
+        });
+      });
+
+      // Beszúrjuk az új diát közvetlenül a jelenlegi mögé
+      presentation.sections[sIdx].slides.splice(slIdx + 1, 0, {
+        slide: newNum,
+        title: `Új dia (${newNum}.)`,
+        cues: ["Első idézet vagy vázlatpont..."]
+      });
+
+      renderEditor();
+    }
+
+    function renumberAllSlidesSequentially() {
+      if (!confirm("Biztosan újraszámozod az összes diát szekciónként sorban (1, 2, 3...)?")) return;
+      let counter = 1;
+      presentation.sections.forEach(sec => {
+        (sec.slides || []).forEach(sl => {
+          sl.slide = counter++;
+        });
+      });
+      renderEditor();
+    }
+
+    function addNewSection() {
+      const lastSec = presentation.sections[presentation.sections.length - 1];
+      let nextSlideNum = 1;
+      presentation.sections.forEach(s => {
+        (s.slides || []).forEach(sl => {
+          const num = parseInt(sl.slide, 10);
+          if (!isNaN(num) && num >= nextSlideNum) nextSlideNum = num + 1;
+        });
+      });
+
+      presentation.sections.push({
+        title: `Új szekció (${presentation.sections.length + 1}.)`,
+        target_seconds: 300,
+        slides: [
+          {
+            slide: nextSlideNum,
+            title: `Dia ${nextSlideNum}`,
+            cues: ["Első mondanivaló vagy idézet."]
+          }
+        ]
+      });
+      renderEditor();
+    }
+
+    function moveSection(sIdx, delta) {
+      const target = sIdx + delta;
+      if (target >= 0 && target < presentation.sections.length) {
+        const item = presentation.sections.splice(sIdx, 1)[0];
+        presentation.sections.splice(target, 0, item);
+        renderEditor();
+      }
+    }
+
+    function duplicateSection(sIdx) {
+      const clone = JSON.parse(JSON.stringify(presentation.sections[sIdx]));
+      clone.title += " (Másolat)";
+      presentation.sections.splice(sIdx + 1, 0, clone);
+      renderEditor();
+    }
+
+    function deleteSection(sIdx) {
+      if (presentation.sections.length <= 1) {
+        alert("Legalább egy szekciónak maradnia kell!");
+        return;
+      }
+      if (confirm("Biztosan törlöd ezt a teljes szekciót a benne lévő diákkal együtt?")) {
+        presentation.sections.splice(sIdx, 1);
+        if (currentSectionIdx >= presentation.sections.length) {
+          currentSectionIdx = presentation.sections.length - 1;
+          currentSlideIdx = 0;
+          currentCueIdx = 0;
+        }
+        renderEditor();
+      }
+    }
+
+    // JSON Import / Export
+    function exportJsonFile() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(presentation, null, 2));
+      const dlAnchor = document.createElement('a');
+      dlAnchor.setAttribute("href", dataStr);
+      dlAnchor.setAttribute("download", (presentation.title.toLowerCase().replace(/[^a-z0-9]/g, '_') || "prezentacio") + ".json");
+      document.body.appendChild(dlAnchor);
+      dlAnchor.click();
+      dlAnchor.remove();
+    }
+
+    function importJsonFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const parsed = JSON.parse(event.target.result);
+          if (parsed && Array.isArray(parsed.sections)) {
+            presentation = normalizePresentation(parsed);
+            currentSectionIdx = 0;
+            currentSlideIdx = 0;
+            currentCueIdx = 0;
+            sectionElapsedSeconds = 0;
+            totalElapsedSeconds = 0;
+            renderEditor();
+            updatePresenterUI();
+            alert("A forgatókönyv sikeresen betöltve!");
+          } else {
+            alert("Érvénytelen JSON formátum: hiányzik a 'sections' tömb.");
+          }
+        } catch (err) {
+          alert("Hiba a JSON feldolgozásakor: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    async function loadSampleData() {
+      try {
+        const res = await fetch('sample_presentation.json');
+        if (res.ok) {
+          const data = await res.json();
+          presentation = normalizePresentation(data);
+          currentSectionIdx = 0;
+          currentSlideIdx = 0;
+          currentCueIdx = 0;
+          sectionElapsedSeconds = 0;
+          totalElapsedSeconds = 0;
+          renderEditor();
+          updatePresenterUI();
+          alert("Minta sikeresen betöltve!");
+        } else {
+          alert("Nem sikerült betölteni a minta fájlt.");
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Raw JSON Modal
+    function openRawJsonModal() {
+      document.getElementById('rawJsonTextarea').value = JSON.stringify(presentation, null, 2);
+      document.getElementById('rawJsonModal').classList.add('active');
+    }
+
+    function closeRawJsonModal() {
+      document.getElementById('rawJsonModal').classList.remove('active');
+    }
+
+    function saveRawJsonModal() {
+      try {
+        const text = document.getElementById('rawJsonTextarea').value;
+        const parsed = JSON.parse(text);
+        if (parsed && Array.isArray(parsed.sections)) {
+          presentation = normalizePresentation(parsed);
+          renderEditor();
+          updatePresenterUI();
+          closeRawJsonModal();
+        } else {
+          alert("A JSON-nak tartalmaznia kell egy 'sections' tömböt!");
+        }
+      } catch (err) {
+        alert("Hibás JSON szintaxis: " + err.message);
+      }
+    }
+
+    // Screen Wake Lock API
+    let wakeLock = null;
+    async function requestWakeLock() {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+          document.getElementById('wakeLockDot').classList.add('active');
+          document.getElementById('wakeLockText').textContent = 'Képernyő ébren';
+          wakeLock.addEventListener('release', () => {
+            document.getElementById('wakeLockDot').classList.remove('active');
+            document.getElementById('wakeLockText').textContent = 'Ébrentartás';
+          });
+        }
+      } catch (err) {
+        console.log('WakeLock nem érhető el vagy megtagadva:', err);
+      }
+    }
+
+    document.addEventListener('visibilitychange', async () => {
+      if (wakeLock !== null && document.visibilityState === 'visible') {
+        await requestWakeLock();
+      }
+    });
+
+    function saveToStorage() {
+      try {
+        localStorage.setItem('zent_saved_presentation', JSON.stringify(presentation));
+      } catch (e) {}
+    }
+
+    function createNewEmptyPresentation() {
+      if (confirm("Biztosan új, üres előadást kezdesz? A jelenlegi módosításaid törlődnek, ha nem mentetted le őket.")) {
+        presentation = {
+          title: "Új előadás",
+          sections: [
+            {
+              title: "Bevezetés",
+              target_seconds: 300,
+              slides: [
+                {
+                  slide: 1,
+                  title: "Köszöntés",
+                  cues: [
+                    "Első gondolat / idézet ehhez a diához..."
+                  ]
+                }
+              ]
+            }
+          ]
+        };
+        currentSectionIdx = 0;
+        currentSlideIdx = 0;
+        currentCueIdx = 0;
+        sectionElapsedSeconds = 0;
+        totalElapsedSeconds = 0;
+        saveToStorage();
+        renderEditor();
+        updatePresenterUI();
+      }
+    }
+
+    function switchView(viewName) {
+      document.getElementById('viewPresenter').classList.toggle('active', viewName === 'presenter');
+      document.getElementById('viewEditor').classList.toggle('active', viewName === 'editor');
+      document.getElementById('tabPresenter').classList.toggle('active', viewName === 'presenter');
+      document.getElementById('tabEditor').classList.toggle('active', viewName === 'editor');
+
+      if (viewName === 'presenter') {
+        updatePresenterUI();
+        syncToProjector();
+      } else {
+        renderEditor();
+        renderAllEditorThumbs();
+      }
+    }
+
+    // Init App
+    window.addEventListener('DOMContentLoaded', async () => {
+      const saved = localStorage.getItem('zent_saved_presentation');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed && Array.isArray(parsed.sections)) {
+            presentation = normalizePresentation(parsed);
+          }
+        } catch (e) {}
+      } else {
+        try {
+          const res = await fetch('sample_presentation.json?t=' + Date.now());
+          if (res.ok) {
+            const data = await res.json();
+            presentation = normalizePresentation(data);
+          }
+        } catch (e) {}
+      }
+
+      // Auto-load PDF if available (priority: presentation.pdf -> eloadas.pdf -> minta_prezentacio.pdf)
+      const pdfCandidates = ['presentation.pdf', 'eloadas.pdf', 'minta_prezentacio.pdf'];
+      for (const candidate of pdfCandidates) {
+        try {
+          const pdfRes = await fetch(candidate + '?t=' + Date.now());
+          if (pdfRes.ok) {
+            const ab = await pdfRes.arrayBuffer();
+            pdfRawData = ab.slice(0);
+            if (window.pdfjsLib) {
+              const loadingTask = pdfjsLib.getDocument({ data: ab });
+              pdfDoc = await loadingTask.promise;
+              document.getElementById('pdfStatusLabel').textContent = candidate;
+              renderSlidePreviews();
+              renderAllEditorThumbs();
+              break;
+            }
+          }
+        } catch (e) {}
+      }
+
+      const savedFontScale = localStorage.getItem('zent_font_scale');
+      if (savedFontScale) {
+        fontScale = parseFloat(savedFontScale) || 1;
+        document.documentElement.style.setProperty('--font-scale', fontScale);
+      }
+
+      renderEditor();
+      updatePresenterUI();
+      updatePauseButtonState();
+      startTimer();
+      requestWakeLock();
+    });
+  </script>
+</body>
+</html>
